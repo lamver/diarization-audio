@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package diarization;
-option go_package = "./diarization;diarization";
+option go_package = "diarization/";
 
 // Имя должно быть строго DiarizationService
 service DiarizationService {
