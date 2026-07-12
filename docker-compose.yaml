@@ -4,8 +4,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: python_grpc_diarizer
-    ports:
-      - "50051:50051"
+    #ports:
+    #  - "50051:50051"
     environment:
       - HF_TOKEN=ВАШ_HF_ТОКЕН  # Передайте ваш реальный токен от Hugging Face
       - PYTHONUNBUFFERED=1     # Чтобы логи в консоли Docker отображались в реальном времени
