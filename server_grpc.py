@@ -13,26 +13,17 @@ import diarization_pb2_grpc
 
 DEVICE = "cpu"
 COMPUTE_TYPE = "int8"
-# Считываем токен из docker-compose окружения
 HF_TOKEN = os.getenv("HF_TOKEN", "ВАШ_HF_ТОКЕН") 
 
-# АВТООПРЕДЕЛЕНИЕ РОДИТЕЛЬСКОГО КЛАССА:
-# Защищает от багов разных версий grpcio-tools (ищет Servicer или Service)
-if hasattr(diarization_pb2_grpc, "DiarizationServiceServicer"):
-    BaseServicer = diarization_pb2_grpc.DiarizationServiceServicer
-elif hasattr(diarization_pb2_grpc, "DiarizationService"):
-    BaseServicer = diarization_pb2_grpc.DiarizationService
-else:
-    raise AttributeError("Не удалось найти базовый gRPC класс в diarization_pb2_grpc.py")
-
-class DiarizationServiceServicer(BaseServicer):
+# ЧИСТЫЙ КЛАСС БЕЗ НАСЛЕДОВАНИЯ
+# Это защищает от любых изменений в библиотеке grpcio-tools
+class DiarizationServiceServicer:
     def __init__(self):
         print("Загрузка ИИ моделей в память...")
         self.model = whisperx.load_model("small", DEVICE, compute_type=COMPUTE_TYPE, language="ru")
         self.model_a, self.metadata = whisperx.load_align_model(language_code="ru", device=DEVICE)
         self.diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
         
-        # Модель для создания векторов голоса (эмбеддингов)
         self.voice_encoder = EncoderClassifier.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb", 
             run_opts={"device": DEVICE}
@@ -40,14 +31,13 @@ class DiarizationServiceServicer(BaseServicer):
         print("Все модели загружены. gRPC сервер готов.")
 
     def _extract_voice_vector(self, audio_path, start, end):
-        """Извлекает 192-мерный вектор из конкретного участка аудио"""
         try:
             signal, fs = torchaudio.load(audio_path)
             start_frame = int(start * fs)
             end_frame = int(end * fs)
             segment_signal = signal[:, start_frame:end_frame]
             
-            if segment_signal.shape[1] < 1600: # если реплика слишком короткая (менеше ~0.1 сек)
+            if segment_signal.shape < 1600:
                 return []
                 
             with torch.no_grad():
@@ -58,7 +48,6 @@ class DiarizationServiceServicer(BaseServicer):
             return []
 
     def ProcessAudio(self, request_iterator, context):
-        # Собираем байты из стрима от Go в один буфер памяти
         audio_buffer = io.BytesIO()
         for chunk in request_iterator:
             audio_buffer.write(chunk.data)
@@ -76,13 +65,12 @@ class DiarizationServiceServicer(BaseServicer):
             diarize_segments = self.diarize_model(audio)
             result = whisperx.assign_word_speakers(diarize_segments, result)
 
-            # 2. Формирование ответа Protobuf с эмбеддингами
+            # 2. Формирование ответа с эмбеддингами
             proto_segments = []
             for segment in result["segments"]:
                 start = segment["start"]
                 end = segment["end"]
                 
-                # Извлекаем вектор для этого таймкода
                 vector = self._extract_voice_vector(temp_filename, start, end)
 
                 proto_segments.append(diarization_pb2.Segment(
@@ -90,7 +78,7 @@ class DiarizationServiceServicer(BaseServicer):
                     start=round(start, 2),
                     end=round(end, 2),
                     text=segment["text"].strip(),
-                    embedding=vector # передаем массив float в Go
+                    embedding=vector
                 ))
 
             gc.collect()
@@ -109,7 +97,7 @@ class DiarizationServiceServicer(BaseServicer):
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
     
-    # Автоматически находим функцию регистрации сервиса в сервере
+    # Динамический поиск функции регистрации сервиса (add_*_to_server)
     register_func = None
     for attr in dir(diarization_pb2_grpc):
         if attr.startswith("add_") and attr.endswith("_to_server"):
@@ -119,6 +107,7 @@ def serve():
     if register_func is None:
         raise AttributeError("Не найдена функция add_*_to_server в diarization_pb2_grpc.py")
         
+    # Передаем наш чистый объект в функцию регистрации
     register_func(DiarizationServiceServicer(), server)
     
     server.add_insecure_port('[::]:50051')
