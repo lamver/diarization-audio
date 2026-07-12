@@ -21,7 +21,7 @@ ENV HF_HOME=/app/.cache/huggingface
 COPY server_grpc.py .
 
 # 2. Компилируем proto-файлы прямо внутри контейнера
-RUN python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. diarization.proto
+RUN ls -la && python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. diarization.proto
 
 # Открываем порт для gRPC
 EXPOSE 50051
