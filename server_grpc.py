@@ -97,19 +97,25 @@ class DiarizationServiceServicer:
 def serve():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
     
-    # Динамический поиск функции регистрации сервиса (add_*_to_server)
-    register_func = None
-    for attr in dir(diarization_pb2_grpc):
-        if attr.startswith("add_") and attr.endswith("_to_server"):
-            register_func = getattr(diarization_pb2_grpc, attr)
-            break
-            
-    if register_func is None:
-        raise AttributeError("Не найдена функция add_*_to_server в diarization_pb2_grpc.py")
+    # Прямая регистрация без перебора атрибутов.
+    # В gRPC v2 функция регистрации лежит либо в grpc модуле сервиса, либо в pb2.
+    # Проверяем оба варианта напрямую:
+    if hasattr(diarization_pb2_grpc, "add_DiarizationServiceServicer_to_server"):
+        diarization_pb2_grpc.add_DiarizationServiceServicer_to_server(DiarizationServiceServicer(), server)
+    elif hasattr(diarization_pb2, "add_DiarizationServiceServicer_to_server"):
+        diarization_pb2.add_DiarizationServiceServicer_to_server(DiarizationServiceServicer(), server)
+    elif hasattr(diarization_pb2_grpc, "add_DiarizationService_to_server"):
+        diarization_pb2_grpc.add_DiarizationService_to_server(DiarizationServiceServicer(), server)
+    else:
+        # Если компилятор совсем всё переиначил, gRPC предоставляет универсальный fallback метод:
+        try:
+            diarization_pb2_grpc.DiarizationService.RegisterService(DiarizationServiceServicer(), server)
+        except Exception:
+            raise AttributeError(
+                "gRPC не смог автоматически зарегистрировать сервис. "
+                "Проверьте, что в diarization.proto имя сервиса указано как DiarizationService"
+            )
         
-    # Передаем наш чистый объект в функцию регистрации
-    register_func(DiarizationServiceServicer(), server)
-    
     server.add_insecure_port('[::]:50051')
     server.start()
     print("gRPC сервер запущен на порту 50051...")
