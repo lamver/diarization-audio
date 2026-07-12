@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Установка зависимостей Python для CPU
 RUN pip install --no-cache-dir torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir grpcio grpcio-tools whisperx
+RUN pip install --no-cache-dir grpcio grpcio-tools whisperx speechbrain
 
 # Задаем переменную окружения, чтобы кэш моделей сохранялся в определенную папку
 ENV HF_HOME=/app/.cache/huggingface
