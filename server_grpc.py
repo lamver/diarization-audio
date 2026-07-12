@@ -95,31 +95,18 @@ class DiarizationServiceServicer:
                 os.remove(temp_filename)
 
 def serve():
-    server = grpc.server(futures.ThreadPoolExecutor(max_workers=2))
+    server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     
-    # Прямая регистрация без перебора атрибутов.
-    # В gRPC v2 функция регистрации лежит либо в grpc модуле сервиса, либо в pb2.
-    # Проверяем оба варианта напрямую:
-    if hasattr(diarization_pb2_grpc, "add_DiarizationServiceServicer_to_server"):
-        diarization_pb2_grpc.add_DiarizationServiceServicer_to_server(DiarizationServiceServicer(), server)
-    elif hasattr(diarization_pb2, "add_DiarizationServiceServicer_to_server"):
-        diarization_pb2.add_DiarizationServiceServicer_to_server(DiarizationServiceServicer(), server)
-    elif hasattr(diarization_pb2_grpc, "add_DiarizationService_to_server"):
-        diarization_pb2_grpc.add_DiarizationService_to_server(DiarizationServiceServicer(), server)
-    else:
-        # Если компилятор совсем всё переиначил, gRPC предоставляет универсальный fallback метод:
-        try:
-            diarization_pb2_grpc.DiarizationService.RegisterService(DiarizationServiceServicer(), server)
-        except Exception:
-            raise AttributeError(
-                "gRPC не смог автоматически зарегистрировать сервис. "
-                "Проверьте, что в diarization.proto имя сервиса указано как DiarizationService"
-            )
-        
+    # Строгое сопоставление по вашему примеру
+    diarization_pb2_grpc.add_DiarizationServiceServicer_to_server(DiarizationServiceServicer(), server)
+    
     server.add_insecure_port('[::]:50051')
+    print("gRPC Diarization Server started on port 50051...")
     server.start()
-    print("gRPC сервер запущен на порту 50051...")
     server.wait_for_termination()
+
+if __name__ == '__main__':
+    serve()
 
 if __name__ == '__main__':
     serve()

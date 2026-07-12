@@ -3,6 +3,7 @@ syntax = "proto3";
 package diarization;
 option go_package = "./diarization;diarization";
 
+// Имя должно быть строго DiarizationService
 service DiarizationService {
   rpc ProcessAudio(stream AudioChunk) returns (DiarizationResponse);
 }
@@ -16,7 +17,7 @@ message Segment {
   double start = 2;
   double end = 3;
   string text = 4;
-  repeated float embedding = 5; 
+  repeated float embedding = 5;
 }
 
 message DiarizationResponse {
