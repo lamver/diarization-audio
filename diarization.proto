@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package diarization;
+option go_package = "./diarization;diarization";
+
+service DiarizationService {
+  rpc ProcessAudio(stream AudioChunk) returns (DiarizationResponse);
+}
+
+message AudioChunk {
+  bytes data = 1;
+}
+
+message Segment {
+  string speaker = 1;
+  double start = 2;
+  double end = 3;
+  string text = 4;
+  repeated float embedding = 5; 
+}
+
+message DiarizationResponse {
+  string status = 1;
+  repeated Segment segments = 2;
+}
