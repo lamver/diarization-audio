@@ -22,7 +22,7 @@ class DiarizationServiceServicer:
         print("Загрузка ИИ моделей в память...")
         self.model = whisperx.load_model("small", DEVICE, compute_type=COMPUTE_TYPE, language="ru")
         self.model_a, self.metadata = whisperx.load_align_model(language_code="ru", device=DEVICE)
-        self.diarize_model = whisperx.DiarizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
+        self.diarize_model = whisperx.DiardizationPipeline(use_auth_token=HF_TOKEN, device=DEVICE)
         
         self.voice_encoder = EncoderClassifier.from_hparams(
             source="speechbrain/spkrec-ecapa-voxceleb", 
